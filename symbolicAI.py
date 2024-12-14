@@ -1,5 +1,5 @@
 from constraint import Problem, AllDifferentConstraint
-from sympy import symbols, parse_expr
+from sympy import symbols, parse_expr, Eq, solve, sympify, roots, solve_poly_system
 import re
 
 # Phân tích phương trình từ văn bản
@@ -30,21 +30,26 @@ def parse_equation_text(text):
     coefficients = [lhs_expr.coeff(x, i) for i in range(degree, -1, -1)]
     return coefficients, rhs_expr
 
-# Giải phương trình bậc n
 def solve_polynomial(coefficients, rhs):
     """
     Giải phương trình bậc n với hệ số và vế phải.
     """
-    problem = Problem()
-    problem.addVariable("x", range(-1000, 1001))  # Miền giá trị giả định
+    # print("Hệ số:", coefficients)
+    # print("Vế phải:", rhs)
+    
+    x = symbols('x')
 
-    # Thêm ràng buộc
-    def polynomial_constraint(x):
-        return sum(c * x**i for i, c in enumerate(reversed(coefficients))) == rhs
+    # Tạo biểu thức Poly từ hệ số
+    degree = len(coefficients) - 1
+    poly_expr = sum(c * x**(degree - i) for i, c in enumerate(coefficients))
 
-    problem.addConstraint(polynomial_constraint, ["x"])
-    solutions = problem.getSolutions()
-    return [s["x"] for s in solutions]
+    # Tạo phương trình bậc n = 0
+    equation = Eq(poly_expr, 0)
+
+    # Giải phương trình
+    solutions = solve(equation, x)
+
+    return solutions
 
 # Giải Sudoku
 def solve_sudoku_with_constraints(grid):
