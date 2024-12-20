@@ -1,5 +1,5 @@
 from constraint import Problem, AllDifferentConstraint
-from sympy import symbols, parse_expr
+from sympy import symbols, parse_expr, Eq, solve, sympify, roots, solve_poly_system
 import re
 
 # Phân tích phương trình từ văn bản
@@ -30,21 +30,26 @@ def parse_equation_text(text):
     coefficients = [lhs_expr.coeff(x, i) for i in range(degree, -1, -1)]
     return coefficients, rhs_expr
 
-# Giải phương trình bậc n
 def solve_polynomial(coefficients, rhs):
     """
     Giải phương trình bậc n với hệ số và vế phải.
     """
-    problem = Problem()
-    problem.addVariable("x", range(-1000, 1001))  # Miền giá trị giả định
+    # print("Hệ số:", coefficients)
+    # print("Vế phải:", rhs)
+    
+    x = symbols('x')
 
-    # Thêm ràng buộc
-    def polynomial_constraint(x):
-        return sum(c * x**i for i, c in enumerate(reversed(coefficients))) == rhs
+    # Tạo biểu thức Poly từ hệ số
+    degree = len(coefficients) - 1
+    poly_expr = sum(c * x**(degree - i) for i, c in enumerate(coefficients))
 
-    problem.addConstraint(polynomial_constraint, ["x"])
-    solutions = problem.getSolutions()
-    return [s["x"] for s in solutions]
+    # Tạo phương trình bậc n = 0
+    equation = Eq(poly_expr, 0)
+
+    # Giải phương trình
+    solutions = solve(equation, x)
+
+    return solutions
 
 # Giải Sudoku
 def solve_sudoku_with_constraints(grid):
@@ -97,17 +102,7 @@ if __name__ == "__main__":
 
     # 2. Giải Sudoku
     print("\nGiải Sudoku:")
-    sudoku_grid = [
-        [5, 3, 0, 0, 7, 0, 0, 0, 0],
-        [6, 0, 0, 1, 9, 5, 0, 0, 0],
-        [0, 9, 8, 0, 0, 0, 0, 6, 0],
-        [8, 0, 0, 0, 6, 0, 0, 0, 3],
-        [4, 0, 0, 8, 0, 3, 0, 0, 1],
-        [7, 0, 0, 0, 2, 0, 0, 0, 6],
-        [0, 6, 0, 0, 0, 0, 2, 8, 0],
-        [0, 0, 0, 4, 1, 9, 0, 0, 5],
-        [0, 0, 0, 0, 8, 0, 0, 7, 9]
-    ]
+    sudoku_grid = [[0, 7, 0, 0, 0, 0, 0, 4, 3], [0, 4, 0, 0, 0, 9, 6, 1, 0], [8, 0, 0, 6, 3, 4, 9, 0, 0], [0, 9, 4, 0, 5, 2, 0, 0, 0], [3, 5, 8, 4, 6, 0, 0, 2, 0], [0, 0, 0, 8, 0, 0, 5, 3, 0], [0, 8, 0, 0, 7, 0, 0, 9, 1], [9, 0, 2, 1, 0, 0, 0, 0, 5], [0, 0, 7, 0, 4, 0, 8, 0, 2]]
     print("Sudoku ban đầu:")
     for row in sudoku_grid:
         print(row)
