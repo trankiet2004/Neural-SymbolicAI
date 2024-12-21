@@ -169,7 +169,6 @@ def test_sudoku():
     print(f"File được đọc thành công! Tổng số dòng: {len(df)}")
 
     ok, test = 0, len(df)
-    # print("Nhập bài toán (phương trình bậc 2, bậc 3 hoặc ma trận Sudoku):")
     for t in tqdm(range(min(len(df), test)), desc=f"Test Sudoku từ testcase 0 đến testcase {len(df)}"):
         try: 
             # input_data = input()
@@ -250,7 +249,7 @@ def test_equation(test_file):
     print(f"Tỉ lệ chính xác: {ok / len(answers)}")
     print(f"Số lượng testcase: {len(answers)}")
         
-if __name__ == "__main__":
+def test_all():
     querys = []
     answers = []
     with open('tonghop.csv', 'r', encoding='utf-8') as file:
@@ -283,3 +282,17 @@ if __name__ == "__main__":
         
     print(f"Tỉ lệ chính xác: {ok / len(answers)}")
     print(f"Số lượng testcase: {len(answers)}")
+    
+if __name__ == "__main__":
+    print("Nhập bài toán (phương trình bậc 2, bậc 3 hoặc ma trận Sudoku):")
+    try: 
+        input_data = input()
+        res = main(input_data)
+        # print(res)
+        print("Kết quả:")
+        try:
+            print(res['solved_sudoku'])
+        except:
+            print(res['solutions'])
+    except:
+        print(res['errors'])
