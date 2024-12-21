@@ -1,8 +1,10 @@
 import re
 import os
+import csv
 import json
 import pandas as pd
 from tqdm import tqdm
+from sympy import sympify
 import google.generativeai as genai
 from symbolicAI import parse_equation_text, solve_polynomial, solve_sudoku_with_constraints
 
@@ -33,6 +35,7 @@ def generate_prompt(input_text):
     Lưu ý: Chỉ trả về nội dung các số hoặc ma trận, không thêm bất kì kí hiệu hay thông tin thừa nào cả.
     
     Nếu câu hỏi là sudoku, hãy trả về ma trận sudoku với mảng 2 chiều (dạng Python list of lists). KHÔNG ĐƯỢC GIẢI SUDOKU. Hãy chỉ trả về ma trận đầu vào.
+    Ngược lại, nếu là phương trình thì phải trả về list coefficients là list có chứa các hệ số của vế trái và giá trị rhs là giá trị bên phải dấu bằng của phương trình
     
     Lưu ý: Chỉ trả về nội dung file hoặc ma trận, không thêm bất kì kí hiệu hay thông tin thừa nào cả.
     """
@@ -64,7 +67,6 @@ def classify_and_extract(response_text):
             # Là Sudoku, chuyển đổi chuỗi thành mảng 2 chiều
             sudoku_array = eval(cleaned_text)
             if isinstance(sudoku_array, list) and all(isinstance(row, list) for row in sudoku_array):
-                # print("YEAH", sudoku_array)
                 return "sudoku", sudoku_array
             else:
                 return "error", {"message": "Mảng Sudoku không hợp lệ."}
@@ -102,20 +104,17 @@ def solve_input(response):
     # elif input_type == "equation":
     else:
         try:
-            # print(response.text)
-            cleaned_text = re.sub(r"```(?:python)?", "", response.text.strip()).strip()
-            matches = re.findall(r"\[.*?\]", cleaned_text)
-            coefficients = eval(matches[0])
-            try:
-                rhs = eval(matches[1])
-            except:
-                rhs = (matches)
+            # print(response.text.strip())
+            cleaned_text = response_text.replace("```python", "").replace("```", "").strip()            
+            lines = cleaned_text.split('\n')
+            coefficients = eval(lines[0].strip())
+            rhs = int(lines[1].strip())
             # print("Yeah1", coefficients)
             # print("YEAH2", rhs)
             solutions = solve_polynomial(coefficients, rhs)
             return {"solutions": solutions}
         except Exception as e:
-            return {"error": str(e)}    
+            return {"error": str(e)}
 
     # else:
     #     return {"error": "Unsupported input format."}
@@ -136,7 +135,7 @@ def main(input_data):
     
     result = solve_input(response)
 
-    return (result)
+    return result
 
 def stringToMatrix(input):
     id = 0
@@ -151,10 +150,15 @@ def stringToMatrix(input):
     
     return str(sudoku)
 
-if __name__ == "__main__":
+def test_sudoku():
     chunk_size = 100
     chunks = []    
-    with tqdm(total=100, desc="Reading file") as pbar:  # Tổng là 100 vì chỉ đọc 100 dòng
+    def count_lines_in_file(filename):
+        with open(filename, 'r') as file:
+            return sum(1 for line in file)
+    
+    lines = count_lines_in_file('sudoku.csv')
+    with tqdm(total=min(100, lines - 1), desc="Reading file") as pbar:
         for chunk in pd.read_csv('sudoku.csv', chunksize=chunk_size):
             chunks.append(chunk)
             pbar.update(chunk.shape[0])
@@ -164,13 +168,12 @@ if __name__ == "__main__":
 
     print(f"File được đọc thành công! Tổng số dòng: {len(df)}")
 
-    ok, test = 0, 100
+    ok, test = 0, len(df)
     # print("Nhập bài toán (phương trình bậc 2, bậc 3 hoặc ma trận Sudoku):")
-    for t in tqdm(range(min(len(df), test)), desc="Test Sudoku từ testcase 0 đến testcase 99"):
+    for t in tqdm(range(min(len(df), test)), desc=f"Test Sudoku từ testcase 0 đến testcase {len(df)}"):
         try: 
             # input_data = input()
             input_data = "\nGiải sudoku " + stringToMatrix(df['puzzle'][t])
-            # input_data = "\nGiải sudoku " + "[[5,3,0,0,7,0,0,0,0],[6,0,0,1,9,5,0,0,0],[0,9,8,0,0,0,0,6,0],[8,0,0,0,6,0,0,0,3],[4,0,0,8,0,3,0,0,1],[7,0,0,0,2,0,0,0,6],[0,6,0,0,0,0,2,8,0],[0,0,0,4,1,9,0,0,5],[0,0,0,0,8,0,0,7,9]]"
             res = main(input_data)
             tempRes = ""
             
@@ -178,23 +181,23 @@ if __name__ == "__main__":
                 for j in i:
                     tempRes += str(j)
             
-            temp = ""
             ok += (tempRes == df['solution'][t])
-            # ok += (tempRes == "534678912672195348198342567859761423426853791713924856961537284287419635345286179")
         except:
             ok += 0
 
-    print(f"Tỉ lệ chính xác khi chạy test từ 0 đến 99 là: {ok / test}")
+    print(f"Tỉ lệ chính xác khi chạy test từ 0 đến {test} là: {ok / test}")
     print(f"Số lượng test: {test}")
 
+    if lines <= 11:
+        return 
+    
     j = 10
-    while j <= 100:
+    while j <= lines:
         ok = 0
         for t in tqdm(range(j - 10, j), desc=f"Test Sudoku từ testcase {j - 10} đến testcase {j - 1}"):
             try: 
                 # input_data = input()
                 input_data = "\nGiải sudoku " + stringToMatrix(df['puzzle'][t])
-                # input_data = "\nGiải sudoku " + "[[5,3,0,0,7,0,0,0,0],[6,0,0,1,9,5,0,0,0],[0,9,8,0,0,0,0,6,0],[8,0,0,0,6,0,0,0,3],[4,0,0,8,0,3,0,0,1],[7,0,0,0,2,0,0,0,6],[0,6,0,0,0,0,2,8,0],[0,0,0,4,1,9,0,0,5],[0,0,0,0,8,0,0,7,9]]"
                 res = main(input_data)
                 tempRes = ""
                 
@@ -204,7 +207,6 @@ if __name__ == "__main__":
                 
                 temp = ""
                 ok += (tempRes == df['solution'][t])
-                # ok += (tempRes == "534678912672195348198342567859761423426853791713924856961537284287419635345286179")
             except:
                 ok += 0
         print(f"Tỉ lệ chính xác khi chạy test từ {j - 10} đến {j - 1} là: {ok / 10}")
@@ -212,3 +214,72 @@ if __name__ == "__main__":
     
     # print("Kết quả:")
     # print(res)
+    
+def test_equation(test_file):
+    equations = []
+    answers = []
+    
+    with open(test_file, 'r', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        next(reader)
+        for row in reader:
+            equation = row[0].strip()
+            answer = row[1].strip()
+            equations.append(equation)    
+            answers.append([sympify(expr.strip()) for expr in answer[1:-1].split(',')])           
+    
+    ok = 0
+    for i in tqdm(range(0, min(len(answers), len(equations))), desc="Đang Xử Lý", unit="test"):
+        try: 
+            input_data = "\nGiải " + equations[i]
+            # print(input_data)
+            res = main(input_data)
+            
+            check1 = set()
+            check2 = set()
+            for x in res['solutions']:
+                check1.add(x)
+            
+            for x in answers[i]:
+                check2.add(x)
+                       
+            ok += (check1 == check2)
+        except:
+            ok += 0
+        
+    print(f"Tỉ lệ chính xác: {ok / len(answers)}")
+    print(f"Số lượng testcase: {len(answers)}")
+        
+if __name__ == "__main__":
+    querys = []
+    answers = []
+    with open('tonghop.csv', 'r', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        next(reader)
+        for row in reader:
+            query = row[0].strip()
+            answer = row[1].strip()
+            querys.append(query)
+            answers.append([sympify(expr.strip()) for expr in answer[1:-1].split(',')])  
+            
+    ok = 0
+    for i in tqdm(range(0, min(len(answers), 30)), desc="Đang Xử Lý", unit="test"):
+        try: 
+            input_data = "\nGiải " + querys[i]
+            # print(input_data)
+            res = main(input_data)
+            
+            check1 = set()
+            check2 = set()
+            for x in res['solutions']:
+                check1.add(x)
+            
+            for x in answers[i]:
+                check2.add(x)
+                         
+            ok += (check1 == check2)
+        except:
+            ok += 0
+        
+    print(f"Tỉ lệ chính xác: {ok / len(answers)}")
+    print(f"Số lượng testcase: {len(answers)}")
