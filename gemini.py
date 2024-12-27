@@ -8,8 +8,8 @@ from sympy import sympify
 import google.generativeai as genai
 from symbolicAI import parse_equation_text, solve_polynomial, solve_sudoku_with_constraints
 
-# genai.configure(api_key="AIzaSyBn8T5HqQuQfJlfEQSXW5k6fYjqPnc8ZOM")
-genai.configure(api_key="AIzaSyDvXPvJ06_yqoNWLzV2kX1xFIaVQjDBmeU")
+API_KEY = "........"
+genai.configure(api_key=API_KEY)
  
 generation_config = {
     "temperature": 1,
